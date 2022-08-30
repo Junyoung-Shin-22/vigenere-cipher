@@ -1,51 +1,59 @@
 import itertools
 import argparse
+import os
 
 ASCII_A = ord('A')
 
-def _check_char_range(func):
-    def inner(char, *args):
-        assert isinstance(char, str) and len(char) == 1 and ord(char) in range(ASCII_A, ASCII_A + 26)
+def _offset(char):
+        return ord(char.upper()) - ASCII_A
 
-        return func(char, *args)
-    
-    return inner
+def _caesar_encrypt_char(char, key, decrypt=False):
+    if decrypt:
+        sign = -1
+    else:
+        sign = 1
 
-@_check_char_range
-def _caesar_encrypt_char(char, key):
-    return chr(ASCII_A + (ord(char) - ASCII_A + key) % 26)
-
-@_check_char_range
-def _char_to_offset(char):
-    return ord(char) - ASCII_A
+    return chr(ASCII_A + (_offset(char) + sign * key) % 26)
 
 def vigenere_cipher(text, key, decrypt=False):
-    """
-    >>> vigenere_cipher('ATTACKATDAWN', 'LEMON') == 'LXFOPVEFRNHR'
-    True
-
-    >>> vigenere_cipher('LXFOPVEFRNHR', 'LEMON', True) == 'ATTACKATDAWN'
-    True
-    """
-    sign = -1 if decrypt else 1
-    key_iter = itertools.cycle(map(_char_to_offset, key))
+    key_iter = itertools.cycle(map(_offset, key))
 
     result = ''
     for char in text:
-        result += _caesar_encrypt_char(char, sign * next(key_iter))
+        if 'A' <= char <= 'Z' or 'a' <= char <= 'z':
+            lower = char.islower()
+
+            c = _caesar_encrypt_char(char.upper(), next(key_iter), decrypt=decrypt)
+            if lower:
+                c = c.lower()
+            
+            result += c
+        else:
+            result += char
     
     return result
 
-if __name__ == '__main__':
+def _parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('file_name', help='name of the file to be encrypted or decrypted')
     parser.add_argument('key', help='key to the vigenere cipher')
     parser.add_argument('-d', '--decrypt', help='decrypt mode', action='store_true')
     args = parser.parse_args()
 
+    return args
+
+if __name__ == '__main__':
+    args = _parse_args()
+
     file = args.file_name
     key = args.key
     decrypt = args.decrypt
+
+    file = os.path.abspath(file)
+    dir = os.path.dirname(file)
+
+    if not key.isalpha():
+        raise ValueError('key must be consisted only with alphabets.')
 
     if decrypt:
         prefix = 'decrypted_'
@@ -57,5 +65,6 @@ if __name__ == '__main__':
     
     result = vigenere_cipher(text, key, decrypt=decrypt)
 
-    with open(prefix+file, 'w') as f:
+    output_file = os.path.join(dir, prefix + os.path.basename(file))
+    with open(output_file, 'w') as f:
         f.write(result)
